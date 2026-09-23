@@ -1,5 +1,5 @@
 #define AppName "MDK Agent"
-#define AppVersion "0.1.1"
+#define AppVersion "0.1.2"
 #define AppPublisher "MDK Tech Association"
 #define AppExeName "mdk_agent_desktop.exe"
 #define BuildOutput "..\\apps\\flutter_agent\\build\\windows\\x64\\runner\\Release"
@@ -40,6 +40,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 ; The installer embeds the full Flutter release directory, including the EXE,
 ; DLLs, data folder, ICU files, and all runtime assets.
 Source: "{#BuildOutput}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "..\services\agent_api\dist\mdk-agent-api.exe"; DestDir: "{app}\backend"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
@@ -48,6 +49,9 @@ Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{cmd}"; Parameters: "/C taskkill /IM mdk-agent-api.exe /F"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

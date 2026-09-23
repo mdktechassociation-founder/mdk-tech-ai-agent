@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -9,7 +10,27 @@ const _border = Color(0xFF293246);
 const _accent = Color(0xFF8B7CFF);
 const _muted = Color(0xFF8D98AD);
 
-void main() => runApp(const MdkAgentApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _BundledBackend.start();
+  runApp(const MdkAgentApp());
+}
+
+class _BundledBackend {
+  static Process? _process;
+
+  static Future<void> start() async {
+    if (!Platform.isWindows) return;
+    final appDirectory = File(Platform.resolvedExecutable).parent.path;
+    final backendPath = '$appDirectory\\backend\\mdk-agent-api.exe';
+    if (!File(backendPath).existsSync()) return;
+    try {
+      _process = await Process.start(backendPath, const [], workingDirectory: appDirectory);
+    } catch (_) {
+      // The backend may already be running; the UI will show connection status.
+    }
+  }
+}
 
 class MdkAgentApp extends StatelessWidget {
   const MdkAgentApp({super.key});

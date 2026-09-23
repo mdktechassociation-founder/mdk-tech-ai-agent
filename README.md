@@ -62,7 +62,9 @@ This agent will use a plan → execute → verify loop. Destructive actions, ext
 The Windows workflow creates a single Inno Setup installer:
 
 ```text
-MDK-Agent-Setup-v0.1.0.exe
+MDK-Agent-Setup-v0.1.2.exe
 ```
 
 It embeds the complete Flutter release directory, including the app EXE, DLLs, `data` folder, ICU files, and runtime assets. Users do not need to extract a ZIP manually. The installer creates Start Menu shortcuts, optionally creates a desktop shortcut, and registers an uninstaller in Windows Add/Remove Programs.
+
+The installer also bundles the FastAPI backend as `backend\\mdk-agent-api.exe`. The Flutter desktop client starts this local backend automatically on Windows. The backend still reads credentials only from the user's secure local secret file; no keys are shipped in the installer.

@@ -47,7 +47,7 @@ jobs:
         shell: powershell
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\mdk_agent.iss'
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mdk-agent-installer
           path: dist/MDK-Agent-Setup-v*.exe

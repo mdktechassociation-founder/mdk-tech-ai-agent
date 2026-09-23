@@ -7,3 +7,4 @@
 - Added plan → tool-call → approval → verify orchestration foundation.
 - Added secret-safe local setup and output redaction.
 - Added backend tests, Flutter tests, CI, Windows build artifacts, Dependabot, and issue templates.
+- Added Inno Setup single-file Windows installer with embedded Flutter DLLs/assets and automatic uninstaller.

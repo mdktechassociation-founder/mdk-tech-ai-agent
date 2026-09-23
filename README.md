@@ -56,3 +56,13 @@ flutter run -d windows --dart-define=AGENT_API_BASE_URL=http://127.0.0.1:8000
 ## Safety direction
 
 This agent will use a plan → execute → verify loop. Destructive actions, external publishing, repository changes, and browser actions must pass approval gates. Provider keys, passwords, cookies, and tokens belong in a secure backend environment, never in the Flutter bundle, chat messages, logs, or Git history.
+
+## Windows installer
+
+The Windows workflow creates a single Inno Setup installer:
+
+```text
+MDK-Agent-Setup-v0.1.0.exe
+```
+
+It embeds the complete Flutter release directory, including the app EXE, DLLs, `data` folder, ICU files, and runtime assets. Users do not need to extract a ZIP manually. The installer creates Start Menu shortcuts, optionally creates a desktop shortcut, and registers an uninstaller in Windows Add/Remove Programs.

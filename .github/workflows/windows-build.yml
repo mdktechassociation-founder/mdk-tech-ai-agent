@@ -28,9 +28,15 @@ jobs:
       - name: Build release
         working-directory: apps/flutter_agent
         run: flutter build windows --release
-      - name: Upload Windows artifact
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress --yes
+      - name: Build single-file installer
+        shell: powershell
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\mdk_agent.iss'
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: mdk-agent-windows
-          path: apps/flutter_agent/build/windows/x64/runner/Release/
+          name: mdk-agent-installer
+          path: dist/MDK-Agent-Setup-v*.exe
           if-no-files-found: error

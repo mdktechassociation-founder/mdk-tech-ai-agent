@@ -1,0 +1,45 @@
+# ------------------------------------------------------------
+# Secrets & environment files: NEVER commit these
+# (AI agents usually need API keys; keep them in .env)
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ------------------------------------------------------------
+# OS files
+# ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------------------------
+# Editors / IDEs
+# ------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+
+# ------------------------------------------------------------
+# Logs & temporary files
+# ------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+
+# ------------------------------------------------------------
+# Common dependency & build folders (harmless if unused;
+# covers Python and Node.js for when the stack is chosen)
+# ------------------------------------------------------------
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/

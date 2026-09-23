@@ -346,7 +346,13 @@ class _Sidebar extends StatelessWidget {
           Row(children: [
             Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF50D890), shape: BoxShape.circle)),
             const SizedBox(width: 8),
-            const Text('Local agent backend', style: TextStyle(color: _muted, fontSize: 12)),
+            const Expanded(
+              child: Text(
+                'Local agent backend',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _muted, fontSize: 12),
+              ),
+            ),
           ]),
         ],
       ),

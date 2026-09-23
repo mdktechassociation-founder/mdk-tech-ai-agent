@@ -162,6 +162,17 @@ class AgentApi {
     }
     return Map<String, dynamic>.from(jsonDecode(response.body));
   }
+
+  Future<void> saveGuestToken(String token) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/sandbox/guest-token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'guest_token': token}),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception('Guest token save returned ${response.statusCode}');
+    }
+  }
 }
 
 class ChatItem {
@@ -472,12 +483,14 @@ class _SandboxDialog extends StatefulWidget {
 class _SandboxDialogState extends State<_SandboxDialog> {
   late Map<String, dynamic> _status = widget.initialStatus;
   final _isoPath = TextEditingController();
+  final _guestToken = TextEditingController();
   bool _busy = false;
   String? _error;
 
   @override
   void dispose() {
     _isoPath.dispose();
+    _guestToken.dispose();
     super.dispose();
   }
 
@@ -496,6 +509,32 @@ class _SandboxDialogState extends State<_SandboxDialog> {
       setState(() {
         _error = '$error';
         _busy = false;
+      });
+    }
+  }
+
+  Future<void> _saveGuestToken() async {
+    final token = _guestToken.text.trim();
+    if (token.isEmpty) {
+      setState(() => _error = 'Paste the token printed by the guest bridge installer.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.api.saveGuestToken(token);
+      if (!mounted) return;
+      setState(() {
+        _guestToken.clear();
+        _busy = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = '$error';
       });
     }
   }
@@ -600,6 +639,18 @@ class _SandboxDialogState extends State<_SandboxDialog> {
             ),
             const SizedBox(height: 10),
             const Text('Windows is not redistributed by MDK Agent. Use a licensed ISO you provide.', style: TextStyle(color: _muted, fontSize: 11)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _guestToken,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Guest bridge token',
+                hintText: 'Paste the token printed inside the guest',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text('Saved only to the backend secret file; never returned to chat or the model.', style: TextStyle(color: _muted, fontSize: 11)),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Color(0xFFFF8C8C))),
@@ -609,6 +660,7 @@ class _SandboxDialogState extends State<_SandboxDialog> {
       ),
       actions: [
         TextButton(onPressed: _busy ? null : _refresh, child: const Text('Refresh')),
+        TextButton(onPressed: _busy ? null : _saveGuestToken, child: const Text('Save token')),
         TextButton(onPressed: _busy ? null : () => _action('stop'), child: const Text('Stop guest')),
         TextButton(onPressed: _busy ? null : () => _action('destroy'), child: const Text('Destroy guest')),
         OutlinedButton(onPressed: _busy ? null : () => _action('create'), child: const Text('Create guest')),

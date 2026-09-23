@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a masked local UI field for saving the guest bridge token without sending it to chat or the model.
+
 - Replaced unavailable Inno input dialog API with two explicit destructive-action confirmations.
 
 - Fixed Inno Setup uninstall confirmation input for sandbox destruction.

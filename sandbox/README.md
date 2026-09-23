@@ -32,3 +32,5 @@ PowerShell -ExecutionPolicy Bypass -File .\MDK-Agent-Guest.ps1 -Install
 ```
 
 The script creates an authenticated guest-only command bridge and prints a one-time token. Put that token into the backend's local `MDK_AGENT_GUEST_TOKEN` secret field; never paste it into chat or commit it. Packaged mode sends approved `run_command` actions only to this guest bridge and refuses host fallback.
+
+The desktop VM sandbox panel has a masked token field. Paste the guest token there; it is sent only to the local backend and saved to the local secret file. It is never returned by the API, shown in chat, or included in model context.

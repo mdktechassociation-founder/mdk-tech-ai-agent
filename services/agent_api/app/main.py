@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.orchestrator import approve, run_task
-from app.config import setting
-from app.schemas import AgentRequest, ApprovalRequest, SandboxRequest
+from app.config import save_local_secret, setting
+from app.schemas import AgentRequest, ApprovalRequest, GuestTokenRequest, SandboxRequest
 from app.sandbox import DESTRUCTION_PHRASE, SandboxManager
 
 app = FastAPI(title="MDK Agent API", version="0.2.0")
@@ -65,3 +65,9 @@ async def sandbox_action(request: SandboxRequest) -> dict:
         )
     except (ValueError, RuntimeError) as exc:
         return {"status": "error", "message": str(exc)}
+
+
+@app.post("/api/sandbox/guest-token")
+async def save_guest_token(request: GuestTokenRequest) -> dict[str, str]:
+    save_local_secret("MDK_AGENT_GUEST_TOKEN", request.guest_token)
+    return {"status": "saved", "message": "The guest bridge token was saved locally and was not returned."}

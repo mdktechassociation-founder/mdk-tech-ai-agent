@@ -30,3 +30,15 @@ def test_sandbox_destroy_requires_exact_phrase() -> None:
     response = client.post("/api/sandbox/action", json={"action": "destroy"})
     assert response.status_code == 200
     assert response.json()["status"] == "confirmation_required"
+
+
+def test_guest_token_endpoint_does_not_return_token(monkeypatch) -> None:
+    from app import main
+
+    saved = {}
+    monkeypatch.setattr(main, "save_local_secret", lambda name, value: saved.update({name: value}))
+    client = TestClient(app)
+    response = client.post("/api/sandbox/guest-token", json={"guest_token": "local-test-token"})
+    assert response.status_code == 200
+    assert "local-test-token" not in response.text
+    assert saved == {"MDK_AGENT_GUEST_TOKEN": "local-test-token"}

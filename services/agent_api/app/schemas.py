@@ -15,3 +15,7 @@ class SandboxRequest(BaseModel):
     action: str = Field(pattern=r"^(status|create|start|stop|destroy)$")
     iso_path: str = Field(default="", max_length=2048)
     confirmation_phrase: str = Field(default="", max_length=64)
+
+
+class GuestTokenRequest(BaseModel):
+    guest_token: str = Field(min_length=1, max_length=512, pattern=r"^[^\r\n]+$")

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced unavailable Inno input dialog API with two explicit destructive-action confirmations.
+
 - Fixed Inno Setup uninstall confirmation input for sandbox destruction.
 
 - Fixed Flutter analyzer cleanliness for the bundled backend startup path.

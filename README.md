@@ -1,20 +1,58 @@
 # MDK Tech AI Agent
 
-An AI agent project by **MDK Tech Association**.
+An Arena-style desktop AI agent project by **MDK Tech Association**.
 
-> **Status:** Initial setup. The tech stack, project structure, and GitHub Actions workflows will be added once the project scope is finalized.
+## Current milestone
 
-## Roadmap
+- Flutter desktop client foundation for Windows
+- Dark Agent Mode UI with chat, live workflow timeline, and safety status
+- FastAPI backend foundation
+- Kilo Gateway provider adapter
+- Secret references kept server-side; raw keys are never sent to Flutter or the model tool context
+- Gemini web automation explicitly disabled by default
+- No Tor rate-limit or quota bypass logic
 
-- [x] Create the repository
-- [ ] Finalize what the agent should do
-- [ ] Choose the tech stack (language, framework, AI model/provider)
-- [ ] Add the project structure and starter code
-- [ ] Set up GitHub Actions (automated checks, deployment, releases)
-- [ ] Choose a license and add contribution guidelines
+## Architecture
 
-## Security
+```text
+Flutter Windows client
+        ↓ local HTTP
+FastAPI Agent Controller
+        ↓ credential_ref only
+Kilo / Gemini provider adapters
+        ↓ approval-gated tools
+Workspace, web, GitHub, image and browser tools
+```
 
-- Never commit API keys, passwords, or tokens.
-- Keep secrets in a local `.env` file (already ignored by Git).
-- For GitHub Actions, store secrets in **Settings → Secrets and variables → Actions**.
+## Run locally
+
+### Backend
+
+```bash
+cd services/agent_api
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example ~/.config/mdk-tech-ai-agent/secrets.env
+chmod 600 ~/.config/mdk-tech-ai-agent/secrets.env
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Edit `~/.config/mdk-tech-ai-agent/secrets.env` locally. Never commit the real file.
+
+### Flutter Windows client
+
+Install Flutter with Windows desktop support, then:
+
+```bash
+cd apps/flutter_agent
+flutter create .
+flutter pub get
+flutter run -d windows --dart-define=AGENT_API_BASE_URL=http://127.0.0.1:8000
+```
+
+`flutter create .` generates the platform runner files while preserving the Dart app source.
+
+## Safety direction
+
+This agent will use a plan → execute → verify loop. Destructive actions, external publishing, repository changes, and browser actions must pass approval gates. Provider keys, passwords, cookies, and tokens belong in a secure backend environment, never in the Flutter bundle, chat messages, logs, or Git history.

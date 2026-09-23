@@ -43,3 +43,26 @@ __pycache__/
 venv/
 dist/
 build/
+
+# Flutter generated files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+/build/
+/windows/flutter/ephemeral/
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+/ios/Flutter/ephemeral/
+
+# Python backend
+services/agent_api/.venv/
+*.pyc
+__pycache__/
+
+# Local secrets and runtime state
+services/agent_api/.env
+services/agent_api/.env.*
+!services/agent_api/.env.example
+*.sqlite3
+.runtime/

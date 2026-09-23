@@ -17,15 +17,13 @@ Future<void> main() async {
 }
 
 class _BundledBackend {
-  static Process? _process;
-
   static Future<void> start() async {
     if (!Platform.isWindows) return;
     final appDirectory = File(Platform.resolvedExecutable).parent.path;
     final backendPath = '$appDirectory\\backend\\mdk-agent-api.exe';
     if (!File(backendPath).existsSync()) return;
     try {
-      _process = await Process.start(backendPath, const [], workingDirectory: appDirectory);
+      await Process.start(backendPath, const [], workingDirectory: appDirectory);
     } catch (_) {
       // The backend may already be running; the UI will show connection status.
     }

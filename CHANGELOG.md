@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed Flutter analyzer cleanliness for the bundled backend startup path.
+
 - Added Arena-style Flutter desktop shell for Windows.
 - Added FastAPI Agent Controller with Kilo Gateway integration.
 - Added plan → tool-call → approval → verify orchestration foundation.

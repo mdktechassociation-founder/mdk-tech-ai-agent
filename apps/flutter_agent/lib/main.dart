@@ -60,12 +60,24 @@ class AgentRun {
   final String answer;
   final String status;
   final List<AgentEvent> events;
+  final String? approvalId;
+  final Map<String, dynamic>? pendingAction;
 
-  const AgentRun({required this.answer, required this.status, required this.events});
+  const AgentRun({
+    required this.answer,
+    required this.status,
+    required this.events,
+    this.approvalId,
+    this.pendingAction,
+  });
 
   factory AgentRun.fromJson(Map<String, dynamic> json) => AgentRun(
         answer: json['answer'] ?? 'No response received.',
         status: json['status'] ?? 'completed',
+        approvalId: json['approval_id'],
+        pendingAction: json['pending_action'] is Map
+            ? Map<String, dynamic>.from(json['pending_action'])
+            : null,
         events: ((json['events'] as List?) ?? [])
             .map((e) => AgentEvent.fromJson(Map<String, dynamic>.from(e)))
             .toList(),
@@ -88,6 +100,18 @@ class AgentApi {
     );
     if (response.statusCode >= 400) {
       throw Exception('Agent server returned ${response.statusCode}');
+    }
+    return AgentRun.fromJson(jsonDecode(response.body));
+  }
+
+  Future<AgentRun> approve(String approvalId, bool approved) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/agent/approve'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'approval_id': approvalId, 'approved': approved}),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception('Approval request returned ${response.statusCode}');
     }
     return AgentRun.fromJson(jsonDecode(response.body));
   }
@@ -150,11 +174,15 @@ class _AgentHomePageState extends State<AgentHomePage> {
     try {
       final run = await _api.run(text);
       if (!mounted) return;
+      final needsApproval = run.status == 'awaiting_approval' && run.approvalId != null;
       setState(() {
         _messages.add(ChatItem(fromUser: false, text: run.answer));
         _events = run.events;
-        _running = false;
+        _running = needsApproval;
       });
+      if (needsApproval) {
+        await _handleApproval(run);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -170,6 +198,51 @@ class _AgentHomePageState extends State<AgentHomePage> {
           fromUser: false,
           text: 'I could not reach the local agent backend. Please start the FastAPI service and try again.',
         ));
+        _running = false;
+      });
+    }
+  }
+
+  Future<void> _handleApproval(AgentRun run) async {
+    final action = run.pendingAction;
+    final tool = action?['tool'] ?? 'requested action';
+    final arguments = action?['arguments']?.toString() ?? '';
+    final approved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.shield_outlined, color: Color(0xFFFFC56B)),
+          SizedBox(width: 10),
+          Text('Approval required'),
+        ]),
+        content: SizedBox(
+          width: 520,
+          child: Text(
+            'The agent wants to run $tool.\n\n$arguments\n\nApprove only if you understand this action. Secrets are not shown in this card.',
+            style: const TextStyle(height: 1.45),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Deny')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Approve')),
+        ],
+      ),
+    );
+    if (!mounted || run.approvalId == null) return;
+    setState(() => _running = true);
+    try {
+      final result = await _api.approve(run.approvalId!, approved == true);
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatItem(fromUser: false, text: result.answer));
+        _events = result.events;
+        _running = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _events = [AgentEvent(kind: 'error', title: 'Approval failed', detail: '$error', status: 'error')];
         _running = false;
       });
     }

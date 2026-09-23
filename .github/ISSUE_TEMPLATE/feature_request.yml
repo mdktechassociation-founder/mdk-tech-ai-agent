@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest an improvement to MDK Agent
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should the agent do?
+      description: Explain the user workflow and how success should be verified.
+    validations:
+      required: true

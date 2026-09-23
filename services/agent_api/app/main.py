@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from app.agent.orchestrator import run_task
-from app.config import setting
 
-app = FastAPI(title="MDK Agent API", version="0.1.0")
+from app.agent.orchestrator import approve, run_task
+from app.config import setting
+from app.schemas import AgentRequest, ApprovalRequest
+
+app = FastAPI(title="MDK Agent API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost", "http://127.0.0.1", "http://localhost:8000", "http://127.0.0.1:8000"],
@@ -14,19 +15,14 @@ app.add_middleware(
 )
 
 
-class AgentRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=20000)
-    session_id: str = Field(default="desktop-default", max_length=128)
-
-
 @app.get("/api/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "mdk-agent-api"}
+    return {"status": "ok", "service": "mdk-agent-api", "version": "0.2.0"}
 
 
 @app.get("/api/agent/config")
 async def public_config() -> dict[str, str | bool]:
-    # Deliberately exposes metadata only, never credentials.
+    # Metadata only. Never expose credentials or secret file contents.
     return {
         "model": setting("KILO_MODEL", "kilo-auto/free"),
         "gemini_web_enabled": setting("GEMINI_WEB_ENABLED", "false").lower() == "true",
@@ -36,4 +32,9 @@ async def public_config() -> dict[str, str | bool]:
 
 @app.post("/api/agent/run")
 async def run(request: AgentRequest) -> dict:
-    return await run_task(request.message)
+    return await run_task(request.message, request.session_id)
+
+
+@app.post("/api/agent/approve")
+async def approve_action(request: ApprovalRequest) -> dict:
+    return await approve(request.approval_id, request.approved)

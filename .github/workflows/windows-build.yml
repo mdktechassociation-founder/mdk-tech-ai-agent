@@ -1,0 +1,36 @@
+name: Windows desktop build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Windows runner
+        working-directory: apps/flutter_agent
+        run: flutter create --platforms=windows .
+      - name: Get packages
+        working-directory: apps/flutter_agent
+        run: flutter pub get
+      - name: Build release
+        working-directory: apps/flutter_agent
+        run: flutter build windows --release
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdk-agent-windows
+          path: apps/flutter_agent/build/windows/x64/runner/Release/
+          if-no-files-found: error

@@ -23,7 +23,7 @@ jobs:
         working-directory: apps/flutter_agent
         run: flutter create --platforms=windows .
       - name: Set up Python for bundled backend
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip

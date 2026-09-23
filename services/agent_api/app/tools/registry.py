@@ -8,7 +8,9 @@ from urllib.parse import quote
 import httpx
 
 from app.config import setting, secret
+from app.guest import GuestBridge
 from app.security.redaction import redact
+from app.sandbox import DESTRUCTION_PHRASE, SandboxManager
 
 
 class ToolApprovalRequired(Exception):
@@ -24,6 +26,8 @@ class ToolRegistry:
     def __init__(self) -> None:
         configured = Path(setting("MDK_AGENT_WORKSPACE", "../../")).expanduser()
         self.workspace = configured.resolve()
+        self.sandbox = SandboxManager()
+        self.guest = GuestBridge(self.sandbox)
 
     def schemas(self) -> list[dict[str, Any]]:
         return [
@@ -63,7 +67,7 @@ class ToolRegistry:
                 "type": "function",
                 "function": {
                     "name": "run_command",
-                    "description": "Run a command in the workspace. Requires human approval.",
+                    "description": "Run a command in the approved workspace, or inside the isolated guest when sandbox mode is active. Requires human approval.",
                     "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"], "additionalProperties": False},
                 },
             },
@@ -91,11 +95,51 @@ class ToolRegistry:
                     "parameters": {"type": "object", "properties": {"prompt": {"type": "string"}, "filename": {"type": "string"}}, "required": ["prompt", "filename"], "additionalProperties": False},
                 },
             },
+            {
+                "type": "function",
+                "function": {
+                    "name": "sandbox_status",
+                    "description": "Read the isolated Windows guest lifecycle status. This never runs an arbitrary host command.",
+                    "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "sandbox_start",
+                    "description": "Start the dedicated isolated Windows guest. Requires human approval.",
+                    "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "sandbox_stop",
+                    "description": "Stop the dedicated isolated Windows guest. Requires human approval.",
+                    "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "sandbox_create",
+                    "description": "Create the dedicated Hyper-V guest from a user-provided Windows ISO. Requires human approval and UAC.",
+                    "parameters": {"type": "object", "properties": {"iso_path": {"type": "string"}}, "required": ["iso_path"], "additionalProperties": False},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "sandbox_destroy",
+                    "description": "Permanently destroy the managed guest and its snapshots. Requires human approval and the exact phrase DESTROY MDK AGENT VM.",
+                    "parameters": {"type": "object", "properties": {"confirmation_phrase": {"type": "string"}}, "required": ["confirmation_phrase"], "additionalProperties": False},
+                },
+            },
         ]
 
     @staticmethod
     def requires_approval(name: str) -> bool:
-        return name in {"workspace_write", "run_command", "git_commit", "git_push", "generate_image"}
+        return name in {"workspace_write", "run_command", "git_commit", "git_push", "generate_image", "sandbox_start", "sandbox_stop", "sandbox_create", "sandbox_destroy"}
 
     def _path(self, raw: str) -> Path:
         candidate = (self.workspace / raw).resolve()
@@ -108,6 +152,18 @@ class ToolRegistry:
     async def execute(self, name: str, arguments: dict[str, Any], approved: bool = False) -> dict[str, Any]:
         if self.requires_approval(name) and not approved:
             raise ToolApprovalRequired(name, arguments)
+        if setting("MDK_AGENT_EXECUTION_TARGET", "host").lower() == "sandbox" and name in {
+            "workspace_list",
+            "workspace_read",
+            "workspace_write",
+            "git_status",
+            "git_commit",
+            "git_push",
+            "generate_image",
+        }:
+            raise RuntimeError(
+                "Sandbox execution mode is active. Use run_command through the authenticated guest bridge; host fallback is disabled."
+            )
         if name == "workspace_list":
             return await asyncio.to_thread(self._list, arguments.get("subdir", "."))
         if name == "workspace_read":
@@ -116,6 +172,8 @@ class ToolRegistry:
             return await asyncio.to_thread(self._git_status)
         if name == "workspace_write":
             return await asyncio.to_thread(self._write, arguments["path"], arguments["content"])
+        if name == "run_command" and setting("MDK_AGENT_EXECUTION_TARGET", "host").lower() == "sandbox":
+            return await asyncio.to_thread(self.guest.run, arguments["command"])
         if name == "run_command":
             return await asyncio.to_thread(self._command, arguments["command"])
         if name == "git_commit":
@@ -124,6 +182,23 @@ class ToolRegistry:
             return await asyncio.to_thread(self._push)
         if name == "generate_image":
             return await self._image(arguments["prompt"], arguments["filename"])
+        if name == "sandbox_status":
+            return await asyncio.to_thread(self.sandbox.status)
+        if name == "sandbox_start":
+            return await asyncio.to_thread(self.sandbox.run, "start")
+        if name == "sandbox_stop":
+            return await asyncio.to_thread(self.sandbox.run, "stop")
+        if name == "sandbox_create":
+            return await asyncio.to_thread(self.sandbox.run, "create", iso_path=arguments["iso_path"])
+        if name == "sandbox_destroy":
+            phrase = arguments.get("confirmation_phrase", "")
+            if phrase != DESTRUCTION_PHRASE:
+                raise ValueError(f"Destruction requires the exact confirmation phrase: {DESTRUCTION_PHRASE}")
+            return await asyncio.to_thread(
+                self.sandbox.run,
+                "destroy",
+                confirmation_phrase=phrase,
+            )
         raise ValueError(f"Unknown tool: {name}")
 
     def _list(self, subdir: str) -> dict[str, Any]:

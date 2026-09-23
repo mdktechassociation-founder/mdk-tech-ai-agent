@@ -13,6 +13,7 @@ FIELDS = [
     ("KILO_API_KEY", "Kilo API key (optional for eligible free models)"),
     ("GEMINI_API_KEY", "Official Gemini API key (optional)"),
     ("POLLINATIONS_API_KEY", "Pollinations secret key (optional)"),
+    ("MDK_AGENT_GUEST_TOKEN", "Isolated guest bridge token (optional)"),
 ]
 
 

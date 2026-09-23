@@ -134,6 +134,34 @@ class AgentApi {
     }
     return AgentRun.fromJson(jsonDecode(response.body));
   }
+
+  Future<Map<String, dynamic>> sandboxStatus() async {
+    final response = await http.get(Uri.parse('$baseUrl/api/sandbox/status'));
+    if (response.statusCode >= 400) {
+      throw Exception('Sandbox status returned ${response.statusCode}');
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body));
+  }
+
+  Future<Map<String, dynamic>> sandboxAction(
+    String action, {
+    String isoPath = '',
+    String confirmationPhrase = '',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/sandbox/action'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'action': action,
+        'iso_path': isoPath,
+        'confirmation_phrase': confirmationPhrase,
+      }),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception('Sandbox action returned ${response.statusCode}');
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body));
+  }
 }
 
 class ChatItem {
@@ -172,6 +200,24 @@ class _AgentHomePageState extends State<AgentHomePage> {
   void dispose() {
     _input.dispose();
     super.dispose();
+  }
+
+  Future<void> _showSandboxDialog() async {
+    Map<String, dynamic> status;
+    try {
+      status = await _api.sandboxStatus();
+    } catch (error) {
+      status = {
+        'supported': false,
+        'vm_state': 'Backend unavailable',
+        'message': '$error',
+      };
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _SandboxDialog(api: _api, initialStatus: status),
+    );
   }
 
   Future<void> _send() async {
@@ -278,12 +324,15 @@ class _AgentHomePageState extends State<AgentHomePage> {
             return Row(
               children: [
                 if (showSidebar)
-                  _Sidebar(onNewTask: () => setState(() => _messages
+                  _Sidebar(
+                    onNewTask: () => setState(() => _messages
                     ..clear()
                     ..add(const ChatItem(
                       fromUser: false,
                       text: 'New task ready. What should I work on?',
-                    )))),
+                    ))),
+                    onSandbox: _showSandboxDialog,
+                  ),
                 Expanded(
                   child: Column(
                     children: [
@@ -315,7 +364,8 @@ class _AgentHomePageState extends State<AgentHomePage> {
 
 class _Sidebar extends StatelessWidget {
   final VoidCallback onNewTask;
-  const _Sidebar({required this.onNewTask});
+  final VoidCallback onSandbox;
+  const _Sidebar({required this.onNewTask, required this.onSandbox});
 
   @override
   Widget build(BuildContext context) {
@@ -359,6 +409,7 @@ class _Sidebar extends StatelessWidget {
           _SideItem(icon: Icons.chat_bubble_outline, label: 'Agent chat', selected: true),
           _SideItem(icon: Icons.folder_outlined, label: 'Artifacts'),
           _SideItem(icon: Icons.account_tree_outlined, label: 'Git projects'),
+          _SideItem(icon: Icons.security_outlined, label: 'VM sandbox', onTap: onSandbox),
           const Spacer(),
           const Divider(color: _border),
           _SideItem(icon: Icons.settings_outlined, label: 'Settings'),
@@ -383,7 +434,8 @@ class _SideItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  const _SideItem({required this.icon, required this.label, this.selected = false});
+  final VoidCallback? onTap;
+  const _SideItem({required this.icon, required this.label, this.selected = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -400,10 +452,168 @@ class _SideItem extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           leading: Icon(icon, size: 18, color: selected ? Colors.white : _muted),
           title: Text(label, style: TextStyle(color: selected ? Colors.white : _muted, fontSize: 13)),
-          onTap: () {},
+          onTap: onTap,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
       ),
+    );
+  }
+}
+
+class _SandboxDialog extends StatefulWidget {
+  final AgentApi api;
+  final Map<String, dynamic> initialStatus;
+  const _SandboxDialog({required this.api, required this.initialStatus});
+
+  @override
+  State<_SandboxDialog> createState() => _SandboxDialogState();
+}
+
+class _SandboxDialogState extends State<_SandboxDialog> {
+  late Map<String, dynamic> _status = widget.initialStatus;
+  final _isoPath = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _isoPath.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _busy = true);
+    try {
+      final status = await widget.api.sandboxStatus();
+      if (!mounted) return;
+      setState(() {
+        _status = status;
+        _error = null;
+        _busy = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$error';
+        _busy = false;
+      });
+    }
+  }
+
+  Future<void> _action(String action) async {
+    if (action == 'destroy') {
+      final phraseController = TextEditingController();
+      final phrase = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Destroy isolated guest?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('This permanently removes the MDK Agent VM, its disk, snapshots, and all data inside it.'),
+              const SizedBox(height: 14),
+              TextField(
+                controller: phraseController,
+                decoration: const InputDecoration(labelText: 'Type DESTROY MDK AGENT VM'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, phraseController.text),
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFB94A4A)),
+              child: const Text('Destroy guest'),
+            ),
+          ],
+        ),
+      );
+      phraseController.dispose();
+      if (phrase != 'DESTROY MDK AGENT VM') return;
+      await _runAction(action, confirmationPhrase: phrase!);
+      return;
+    }
+    if (action == 'create' && _isoPath.text.trim().isEmpty) {
+      setState(() => _error = 'Select a user-provided Windows .iso path first.');
+      return;
+    }
+    await _runAction(action, isoPath: _isoPath.text.trim());
+  }
+
+  Future<void> _runAction(String action, {String isoPath = '', String confirmationPhrase = ''}) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.api.sandboxAction(
+        action,
+        isoPath: isoPath,
+        confirmationPhrase: confirmationPhrase,
+      );
+      if (!mounted) return;
+      setState(() {
+        _status = result;
+        _busy = false;
+        _error = result['status'] == 'error' ? result['message']?.toString() : null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = '$error';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final supported = _status['supported'] == true;
+    final state = _status['vm_state']?.toString() ?? 'Unknown';
+    final message = _status['message']?.toString() ?? 'No sandbox status available.';
+    return AlertDialog(
+      title: const Row(children: [
+        Icon(Icons.security_outlined, color: _accent),
+        SizedBox(width: 10),
+        Text('VM sandbox'),
+      ]),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text('Computer-level actions run inside the isolated guest. Host control is limited to lifecycle operations.', style: const TextStyle(color: _muted, height: 1.4)),
+            const SizedBox(height: 16),
+            Row(children: [
+              Icon(supported ? Icons.check_circle : Icons.warning_amber_rounded, color: supported ? const Color(0xFF65D99A) : const Color(0xFFFFC56B), size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text(supported ? 'Hyper-V available · Guest state: $state' : message)),
+            ]),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _isoPath,
+              decoration: const InputDecoration(
+                labelText: 'Windows ISO path',
+                hintText: r'C:\Users\You\Downloads\Windows.iso',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text('Windows is not redistributed by MDK Agent. Use a licensed ISO you provide.', style: TextStyle(color: _muted, fontSize: 11)),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: Color(0xFFFF8C8C))),
+            ],
+          ]),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _busy ? null : _refresh, child: const Text('Refresh')),
+        TextButton(onPressed: _busy ? null : () => _action('stop'), child: const Text('Stop guest')),
+        TextButton(onPressed: _busy ? null : () => _action('destroy'), child: const Text('Destroy guest')),
+        OutlinedButton(onPressed: _busy ? null : () => _action('create'), child: const Text('Create guest')),
+        FilledButton(onPressed: _busy ? null : () => _action('start'), child: const Text('Start guest')),
+      ],
     );
   }
 }

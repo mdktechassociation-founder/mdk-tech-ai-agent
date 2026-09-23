@@ -7,6 +7,9 @@ from pathlib import Path
 default_workspace = Path.home() / "Documents" / "MDK Agent Workspace"
 default_workspace.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MDK_AGENT_WORKSPACE", str(default_workspace))
+# Packaged desktop builds expose host lifecycle controls only; computer-level
+# automation is reserved for the isolated guest bridge.
+os.environ.setdefault("MDK_AGENT_EXECUTION_TARGET", "sandbox")
 
 import uvicorn  # noqa: E402
 

@@ -1,5 +1,5 @@
 #define AppName "MDK Agent"
-#define AppVersion "0.1.3"
+#define AppVersion "0.2.0"
 #define AppPublisher "MDK Tech Association"
 #define AppExeName "mdk_agent_desktop.exe"
 #define BuildOutput "..\\apps\\flutter_agent\\build\\windows\\x64\\runner\\Release"
@@ -41,6 +41,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 ; DLLs, data folder, ICU files, and all runtime assets.
 Source: "{#BuildOutput}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\services\agent_api\dist\mdk-agent-api.exe"; DestDir: "{app}\backend"; Flags: ignoreversion
+Source: "..\sandbox\*"; DestDir: "{app}\sandbox"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
@@ -55,3 +56,51 @@ Filename: "{cmd}"; Parameters: "/C taskkill /IM mdk-agent-api.exe /F"; Flags: ru
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+
+
+[Code]
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+  SandboxScript: String;
+  Phrase: String;
+begin
+  Result := True;
+  SandboxScript := ExpandConstant('{app}\sandbox\MDK-Agent-Sandbox.ps1');
+  if not FileExists(SandboxScript) then
+    exit;
+
+  { Exit code 10 means managed sandbox data exists. }
+  if Exec(
+    ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -ExecutionPolicy Bypass -File "' + SandboxScript + '" -Action status -Quiet',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 10) then
+  begin
+    if MsgBox(
+      'A dedicated MDK Agent Windows sandbox exists. Uninstalling without destroying it would leave managed VM data behind.' + #13#10#13#10 +
+      'Choose Yes to permanently destroy the sandbox and continue uninstalling, or No to cancel.',
+      mbConfirmation, MB_YESNO) <> IDYES then
+    begin
+      Result := False;
+      exit;
+    end;
+
+    Phrase := '';
+    if (not InputQuery('Confirm sandbox destruction', 'Type DESTROY MDK AGENT VM to continue:', Phrase)) or
+       (Phrase <> 'DESTROY MDK AGENT VM') then
+    begin
+      MsgBox('The exact confirmation phrase was not entered. Uninstallation was cancelled.', mbError, MB_OK);
+      Result := False;
+      exit;
+    end;
+
+    if (not Exec(
+      ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -ExecutionPolicy Bypass -File "' + SandboxScript + '" -Action destroy -ConfirmationPhrase "DESTROY MDK AGENT VM"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode)) or (ResultCode <> 0) then
+    begin
+      MsgBox('The sandbox could not be destroyed. Uninstallation was cancelled so no managed VM is orphaned.', mbError, MB_OK);
+      Result := False;
+    end;
+  end;
+end;

@@ -12,3 +12,6 @@
 - Added Inno Setup single-file Windows installer with embedded Flutter DLLs/assets and automatic uninstaller.
 - Bundled the FastAPI backend as a Windows executable and auto-started it from the Flutter desktop client.
 - Added uninstall cleanup for the bundled backend process.
+- Added a Hyper-V isolated guest lifecycle broker with a fixed action allowlist and UAC elevation for sensitive lifecycle operations.
+- Added the VM sandbox panel, exact-phrase destruction confirmation, and uninstall-time managed guest cleanup.
+- Disabled host fallback for packaged computer-level execution until the isolated guest bridge is connected.

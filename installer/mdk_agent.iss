@@ -1,5 +1,5 @@
 #define AppName "MDK Agent"
-#define AppVersion "0.2.0"
+#define AppVersion "0.2.1"
 #define AppPublisher "MDK Tech Association"
 #define AppExeName "mdk_agent_desktop.exe"
 #define BuildOutput "..\\apps\\flutter_agent\\build\\windows\\x64\\runner\\Release"
@@ -85,9 +85,8 @@ begin
       exit;
     end;
 
-    Phrase := '';
-    if (not InputQuery('Confirm sandbox destruction', 'Type DESTROY MDK AGENT VM to continue:', Phrase)) or
-       (Phrase <> 'DESTROY MDK AGENT VM') then
+    Phrase := InputBox('Confirm sandbox destruction', 'Type DESTROY MDK AGENT VM to continue:', '');
+    if Phrase <> 'DESTROY MDK AGENT VM' then
     begin
       MsgBox('The exact confirmation phrase was not entered. Uninstallation was cancelled.', mbError, MB_OK);
       Result := False;

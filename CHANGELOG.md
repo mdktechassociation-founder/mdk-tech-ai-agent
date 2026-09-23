@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed Inno Setup uninstall confirmation input for sandbox destruction.
+
 - Fixed Flutter analyzer cleanliness for the bundled backend startup path.
 
 - Added Arena-style Flutter desktop shell for Windows.

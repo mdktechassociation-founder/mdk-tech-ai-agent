@@ -252,35 +252,42 @@ class _AgentHomePageState extends State<AgentHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Row(
-          children: [
-            _Sidebar(onNewTask: () => setState(() => _messages
-              ..clear()
-              ..add(const ChatItem(
-                fromUser: false,
-                text: 'New task ready. What should I work on?',
-              )))),
-            Expanded(
-              child: Column(
-                children: [
-                  _TopBar(running: _running),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Expanded(child: _ChatPanel(
-                          messages: _messages,
-                          controller: _input,
-                          running: _running,
-                          onSend: _send,
-                        )),
-                        _ActivityPanel(events: _events),
-                      ],
-                    ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showSidebar = constraints.maxWidth >= 900;
+            final showActivity = constraints.maxWidth >= 1180;
+            return Row(
+              children: [
+                if (showSidebar)
+                  _Sidebar(onNewTask: () => setState(() => _messages
+                    ..clear()
+                    ..add(const ChatItem(
+                      fromUser: false,
+                      text: 'New task ready. What should I work on?',
+                    )))),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _TopBar(running: _running),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(child: _ChatPanel(
+                              messages: _messages,
+                              controller: _input,
+                              running: _running,
+                              onSend: _send,
+                            )),
+                            if (showActivity) _ActivityPanel(events: _events),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -361,13 +368,16 @@ class _SideItem extends StatelessWidget {
         color: selected ? _panelSoft : Colors.transparent,
         borderRadius: BorderRadius.circular(9),
       ),
-      child: ListTile(
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        leading: Icon(icon, size: 18, color: selected ? Colors.white : _muted),
-        title: Text(label, style: TextStyle(color: selected ? Colors.white : _muted, fontSize: 13)),
-        onTap: () {},
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          leading: Icon(icon, size: 18, color: selected ? Colors.white : _muted),
+          title: Text(label, style: TextStyle(color: selected ? Colors.white : _muted, fontSize: 13)),
+          onTap: () {},
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        ),
       ),
     );
   }

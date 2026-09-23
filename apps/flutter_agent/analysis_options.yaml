@@ -1,0 +1,6 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # The UI intentionally uses dynamic colors and icons in reusable widgets.
+    prefer_const_constructors: false

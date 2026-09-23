@@ -1,5 +1,5 @@
 #define AppName "MDK Agent"
-#define AppVersion "0.1.0"
+#define AppVersion "0.1.1"
 #define AppPublisher "MDK Tech Association"
 #define AppExeName "mdk_agent_desktop.exe"
 #define BuildOutput "..\\apps\\flutter_agent\\build\\windows\\x64\\runner\\Release"
